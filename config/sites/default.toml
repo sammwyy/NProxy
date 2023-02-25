@@ -4,21 +4,21 @@ listen = "0.0.0.0:80"
 listen_ssl = "0.0.0.0:443"
 
 # HTTP settings
-server_name = "*"
+server_name = "localhost"
 
 # SSL settings
 ssl_certificate = "../certs/default.cert"
 ssl_certificate_key = "../certs/default.key"
 
 # Static file server
-[[location]]
+[[server.location]]
 path = "/"
 root = "/var/wwww/html"
 fallback = "index.html"
 rewrite = "index.php?file=%path%"
 
 # Proxy to server
-[[location]]
+[[server.location]]
 path = "/api"
 proxy_to = "http://127.0.0.1:8080"
 ip_forward = true

@@ -1,8 +1,8 @@
 use actix_web::{middleware, web, App, HttpServer, Result};
 use anyhow::bail;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Mutex};
 
-use crate::{config::server_config::ServerConfig, handler::handler};
+use crate::{config::server_config::ServerConfig, handler::handle_request};
 
 #[derive(Clone)]
 pub struct Worker {
@@ -41,13 +41,13 @@ impl Worker {
     }
 
     pub async fn start(&self) -> std::io::Result<()> {
-        let data = web::Data::new(self.clone());
+        let data = web::Data::new(Mutex::new(self.clone()));
 
         let server = HttpServer::new(move || {
             App::new()
                 .app_data(data.clone())
                 .wrap(middleware::NormalizePath::default())
-                .route("{path:.*}", web::route().to(handler))
+                .route("{path:.*}", web::route().to(handle_request))
         });
         server.bind(self.listener.to_string())?.run().await
     }

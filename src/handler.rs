@@ -1,8 +1,33 @@
+use std::sync::Mutex;
+
 use actix_web::{web, HttpRequest, HttpResponse};
 
-use crate::worker::Worker;
+use crate::{
+    config::server_config::{ServerConfig, ServerLocationConfig},
+    worker::Worker,
+};
 
-pub async fn handler(req: HttpRequest, worker: web::Data<Worker>) -> HttpResponse {
+pub async fn handle_location(req: HttpRequest, location: &ServerLocationConfig) -> HttpResponse {
+    HttpResponse::Ok().body("ewe")
+}
+
+pub async fn handle_server(req: HttpRequest, server: &ServerConfig) -> HttpResponse {
+    let path = req.path();
+
+    for location in server.locations.as_ref().unwrap() {
+        if path.starts_with(&location.path) {
+            return handle_location(req, location).await;
+        }
+    }
+
+    HttpResponse::NotFound().body(format!("Error: Location Not Found for: {}", req.path()))
+}
+
+pub async fn handle_request(
+    req: HttpRequest,
+    arc_worker: web::Data<Mutex<Worker>>,
+) -> HttpResponse {
+    // Host getter.
     let host_header = req.headers().get("host");
     let host: &str;
 
@@ -12,10 +37,21 @@ pub async fn handler(req: HttpRequest, worker: web::Data<Worker>) -> HttpRespons
         host = "";
     }
 
-    HttpResponse::Ok().body(format!(
-        "Host: {}, Path: {}, Servers: {}",
-        host,
-        req.path(),
-        worker.sites.len()
-    ))
+    // Server getter.
+    let mut worker = arc_worker.lock().unwrap();
+    let mut server = worker.get_site(host.to_string());
+
+    if server.is_none() {
+        server = worker.get_default_site();
+    }
+
+    if server.is_some() {
+        handle_server(req, server.unwrap()).await
+    } else {
+        HttpResponse::NotFound().body(format!(
+            "Error: Server Not Found, Host: {}, Path: {}",
+            host,
+            req.path(),
+        ))
+    }
 }
