@@ -1,0 +1,8 @@
+# Ignore build data.
+/target
+
+# Ignore certs (for testing purposes)
+/example_config/certs/*
+
+# Include .gitkeep file.
+!/example_config/certs/.gitkeep

@@ -1,0 +1,26 @@
+[[server]]
+# Listening / Socket settings
+listen = "0.0.0.0:80"
+listen_ssl = "0.0.0.0:443"
+
+# HTTP settings
+server_name = "*"
+
+# SSL settings
+ssl_certificate = "../certs/default.cert"
+ssl_certificate_key = "../certs/default.key"
+
+# Static file server
+[[location]]
+path = "/"
+root = "/var/wwww/html"
+fallback = "index.html"
+rewrite = "index.php?file=%path%"
+
+# Proxy to server
+[[location]]
+path = "/api"
+proxy_to = "http://127.0.0.1:8080"
+ip_forward = true
+host_forward = true
+trust_proxy = true
