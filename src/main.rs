@@ -1,15 +1,12 @@
-use std::{env, path::PathBuf};
-
-use crate::config::config_loader;
+use nproxy::start;
 
 pub mod config;
+pub mod handler;
+pub mod nproxy;
+pub mod worker;
 
-fn get_cwd() -> PathBuf {
-    env::current_dir().unwrap()
-}
-
-fn main() {
-    let dir = get_cwd().join("config/config.toml");
-    let config = config_loader::read_config_from_file(&dir).unwrap();
-    println!("{}", config.servers.unwrap().len());
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    start().await;
+    Ok(())
 }
