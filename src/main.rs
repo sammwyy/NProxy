@@ -9,7 +9,7 @@ fn get_cwd() -> PathBuf {
 }
 
 fn main() {
-    let dir = get_cwd().join("example_config/config.toml");
+    let dir = get_cwd().join("config/config.toml");
     let config = config_loader::read_config_from_file(&dir).unwrap();
     println!("{}", config.servers.unwrap().len());
 }
