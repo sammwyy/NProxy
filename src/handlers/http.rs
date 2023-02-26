@@ -7,8 +7,19 @@ use crate::{
     worker::Worker,
 };
 
+use super::{http_proxy::handle_proxy, http_static::handle_static};
+
 pub async fn handle_location(req: HttpRequest, location: &ServerLocationConfig) -> HttpResponse {
-    HttpResponse::Ok().body("ewe")
+    let root = &location.root;
+    let proxy_to = &location.proxy_to;
+
+    if root.is_some() {
+        return handle_static(req, location).await;
+    } else if proxy_to.is_some() {
+        return handle_proxy(req, location).await;
+    }
+
+    HttpResponse::NotFound().body(format!("Error: No handle for location: {}", req.path()))
 }
 
 pub async fn handle_server(req: HttpRequest, server: &ServerConfig) -> HttpResponse {

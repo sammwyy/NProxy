@@ -1,7 +1,7 @@
 use nproxy::start;
 
 pub mod config;
-pub mod handler;
+pub mod handlers;
 pub mod nproxy;
 pub mod worker;
 

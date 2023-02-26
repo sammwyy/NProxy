@@ -6,6 +6,7 @@ pub struct ServerLocationConfig {
 
     // Static files
     pub root: Option<String>,
+    pub index: Option<String>,
     pub fallback: Option<String>,
     pub rewrite: Option<String>,
 

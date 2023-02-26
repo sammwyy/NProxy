@@ -1,8 +1,8 @@
-use actix_web::{middleware, web, App, HttpServer, Result};
+use actix_web::{middleware, middleware::Logger, web, App, HttpServer, Result};
 use anyhow::bail;
 use std::{collections::HashMap, sync::Mutex};
 
-use crate::{config::server_config::ServerConfig, handler::handle_request};
+use crate::{config::server_config::ServerConfig, handlers::http::handle_request};
 
 #[derive(Clone)]
 pub struct Worker {
@@ -42,11 +42,13 @@ impl Worker {
 
     pub async fn start(&self) -> std::io::Result<()> {
         let data = web::Data::new(Mutex::new(self.clone()));
+        env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
         let server = HttpServer::new(move || {
             App::new()
                 .app_data(data.clone())
                 .wrap(middleware::NormalizePath::default())
+                .wrap(Logger::default().log_target("Worker"))
                 .route("{path:.*}", web::route().to(handle_request))
         });
         server.bind(self.listener.to_string())?.run().await
