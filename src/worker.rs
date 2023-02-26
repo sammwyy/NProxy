@@ -1,6 +1,6 @@
-use actix_web::{middleware, middleware::Logger, web, App, HttpServer, Result};
 use anyhow::bail;
-use std::{collections::HashMap, sync::Mutex};
+use axum::{routing::any, Router};
+use std::{collections::HashMap, net::SocketAddr};
 
 use crate::{config::server_config::ServerConfig, handlers::http::handle_request};
 
@@ -40,17 +40,18 @@ impl Worker {
         return self.get_site("*".to_string());
     }
 
-    pub async fn start(&self) -> std::io::Result<()> {
-        let data = web::Data::new(Mutex::new(self.clone()));
-        env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    pub async fn start(self) -> Result<(), hyper::Error> {
+        tracing_subscriber::fmt::init();
 
-        let server = HttpServer::new(move || {
-            App::new()
-                .app_data(data.clone())
-                .wrap(middleware::NormalizePath::default())
-                .wrap(Logger::default().log_target("Worker"))
-                .route("{path:.*}", web::route().to(handle_request))
-        });
-        server.bind(self.listener.to_string())?.run().await
+        let app = Router::new()
+            .fallback(any(handle_request))
+            .with_state(self.clone());
+        let addr: SocketAddr = self.listener.parse().unwrap();
+
+        tracing::debug!("listening on {}", addr);
+
+        axum::Server::bind(&addr)
+            .serve(app.into_make_service())
+            .await
     }
 }

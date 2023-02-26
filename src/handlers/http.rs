@@ -1,6 +1,5 @@
-use std::sync::Mutex;
-
-use actix_web::{web, HttpRequest, HttpResponse};
+use axum::{extract::State, response::Response};
+use hyper::{Body, Request, StatusCode};
 
 use crate::{
     config::server_config::{ServerConfig, ServerLocationConfig},
@@ -9,7 +8,10 @@ use crate::{
 
 use super::{http_proxy::handle_proxy, http_static::handle_static};
 
-pub async fn handle_location(req: HttpRequest, location: &ServerLocationConfig) -> HttpResponse {
+pub async fn handle_location(
+    req: Request<Body>,
+    location: &ServerLocationConfig,
+) -> Response<Body> {
     let root = &location.root;
     let proxy_to = &location.proxy_to;
 
@@ -19,25 +21,37 @@ pub async fn handle_location(req: HttpRequest, location: &ServerLocationConfig) 
         return handle_proxy(req, location).await;
     }
 
-    HttpResponse::NotFound().body(format!("Error: No handle for location: {}", req.path()))
+    return Response::builder()
+        .status(StatusCode::BAD_REQUEST)
+        .body(Body::from(format!(
+            "Error: No handle for location: {}",
+            req.uri(),
+        )))
+        .unwrap();
 }
 
-pub async fn handle_server(req: HttpRequest, server: &ServerConfig) -> HttpResponse {
-    let path = req.path();
+pub async fn handle_server(req: Request<Body>, server: &ServerConfig) -> Response<Body> {
+    let path = req.uri();
 
     for location in server.locations.as_ref().unwrap() {
-        if path.starts_with(&location.path) {
+        if path.path().starts_with(&location.path) {
             return handle_location(req, location).await;
         }
     }
 
-    HttpResponse::NotFound().body(format!("Error: Location Not Found for: {}", req.path()))
+    return Response::builder()
+        .status(StatusCode::NOT_FOUND)
+        .body(Body::from(format!(
+            "Error: Location Not Found, Path: {}",
+            req.uri(),
+        )))
+        .unwrap();
 }
 
 pub async fn handle_request(
-    req: HttpRequest,
-    arc_worker: web::Data<Mutex<Worker>>,
-) -> HttpResponse {
+    State(mut worker): State<Worker>,
+    req: Request<Body>,
+) -> Response<Body> {
     // Host getter.
     let host_header = req.headers().get("host");
     let host: &str;
@@ -49,7 +63,6 @@ pub async fn handle_request(
     }
 
     // Server getter.
-    let mut worker = arc_worker.lock().unwrap();
     let mut server = worker.get_site(host.to_string());
 
     if server.is_none() {
@@ -59,10 +72,13 @@ pub async fn handle_request(
     if server.is_some() {
         handle_server(req, server.unwrap()).await
     } else {
-        HttpResponse::NotFound().body(format!(
-            "Error: Server Not Found, Host: {}, Path: {}",
-            host,
-            req.path(),
-        ))
+        return Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Body::from(format!(
+                "Error: Server Not Found, Host: {}, Path: {}",
+                host,
+                req.uri(),
+            )))
+            .unwrap();
     }
 }

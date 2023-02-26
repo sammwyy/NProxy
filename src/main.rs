@@ -3,10 +3,10 @@ use nproxy::start;
 pub mod config;
 pub mod handlers;
 pub mod nproxy;
+pub mod utils;
 pub mod worker;
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
+#[tokio::main]
+async fn main() {
     start().await;
-    Ok(())
 }

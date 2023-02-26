@@ -7,7 +7,7 @@ fn get_cwd() -> PathBuf {
     env::current_dir().unwrap()
 }
 
-pub async fn start() -> Vec<Result<(), std::io::Error>> {
+pub async fn start() -> Vec<Result<(), hyper::Error>> {
     let dir = get_cwd().join("config/config.toml");
     let config = config_loader::read_config_from_file(&dir).unwrap();
 
@@ -29,7 +29,12 @@ pub async fn start() -> Vec<Result<(), std::io::Error>> {
 
     let tasks: Vec<_> = workers
         .iter_mut()
-        .map(|worker| worker.1.get_mut().unwrap().start())
+        .map(|entry| {
+            let mutex = entry.1;
+            let worker = mutex.get_mut().unwrap();
+            let future = worker.to_owned().start();
+            return future;
+        })
         .collect();
 
     future::join_all(tasks).await
